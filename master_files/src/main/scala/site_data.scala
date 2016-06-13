@@ -26,7 +26,7 @@ object DataStreaming {
 
     // configure Kafka parameters
     val brokers = "ec2-52-201-165-163.compute-1.amazonaws.com:9092" // master
-    val topics = "site_data"
+    val topics = "site_views"
     val topicsSet = topics.split(",").toSet
 
     // configure batch intervals and create context
@@ -59,7 +59,7 @@ object DataStreaming {
         val ticksDF = lines.map( x => {
                                   val tokens = x.split(";")
                                   Tick(tokens(1), 1)}).toDF()
-        val ticks_per_source_DF = ticksDF.agg("count" -> "sum") 
+        val ticks_per_source_DF = ticksDF.groupBy("source").agg("count" -> "sum") 
         ticks_per_source_DF.show()
 
         // hyperloglog counting
@@ -84,11 +84,11 @@ object DataStreaming {
         if (approxids_pre.count()!=0){
             val approxids_hll = approxids_pre.reduce(_ + _)
             all_ids += approxids_hll  // update global
-            println("Approx distinct ids this batch: %d".format(approxids_hll.estimatedSize.toInt))
-            println("Approx distinct ids overall: %d".format(globalHll.estimateSize(all_ids).toInt))
+            println("OUT: Approx distinct ids this batch: %d".format(approxids_hll.estimatedSize.toInt))
+            println("OUT: Approx distinct ids overall: %d".format(globalHll.estimateSize(all_ids).toInt))
         }else{
-        println("Approx distinct ids this batch: 0")
-        println("Approx distinct ids overall: %d".format(globalHll.estimateSize(all_ids).toInt))
+        println("OUT: Approx distinct ids this batch: 0")
+        println("OUT: Approx distinct ids overall: %d".format(globalHll.estimateSize(all_ids).toInt))
         }
 
         // 2. count males
@@ -100,11 +100,11 @@ object DataStreaming {
         if (approxmales_pre.count()!=0){
             val approxmales_hll = approxmales_pre.reduce(_ + _)
             all_males += approxmales_hll  // update global
-            println("Approx distinct males this batch: %d".format(approxmales_hll.estimatedSize.toInt))
-            println("Approx distinct males overall: %d".format(globalHll.estimateSize(all_males).toInt))
+            println("OUT: Approx distinct males this batch: %d".format(approxmales_hll.estimatedSize.toInt))
+            println("OUT: Approx distinct males overall: %d".format(globalHll.estimateSize(all_males).toInt))
         }else{
-        println("Approx distinct males this batch: 0")
-        println("Approx distinct males overall: %d".format(globalHll.estimateSize(all_males).toInt))
+        println("OUT: Approx distinct males this batch: 0")
+        println("OUT: Approx distinct males overall: %d".format(globalHll.estimateSize(all_males).toInt))
         }                               
 
         // 3. count ids belonging to specific group            
@@ -116,11 +116,11 @@ object DataStreaming {
         if (approxage2_pre.count()!=0){
             val approxage2_hll = approxage2_pre.reduce(_ + _)
             all_age2 += approxage2_hll  // update global
-            println("Approx distinct 18-34s this batch: %d".format(approxage2_hll.estimatedSize.toInt))
-            println("Approx distinct 18-34s overall: %d".format(globalHll.estimateSize(all_age2).toInt))
+            println("OUT: Approx distinct 18-34s this batch: %d".format(approxage2_hll.estimatedSize.toInt))
+            println("OUT: Approx distinct 18-34s overall: %d".format(globalHll.estimateSize(all_age2).toInt))
         }else{
-        println("Approx distinct 18-34s this batch: 0")
-        println("Approx distinct 18-34s overall: %d".format(globalHll.estimateSize(all_age2).toInt))
+        println("OUT: Approx distinct 18-34s this batch: 0")
+        println("OUT: Approx distinct 18-34s overall: %d".format(globalHll.estimateSize(all_age2).toInt))
         }
 
     }
