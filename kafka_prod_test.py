@@ -1,9 +1,8 @@
 # kafka_prod_test.py
-# last revised 7 Jun 2016
+# last revised 13 Jun 2016
 
-# This is a script to randomly generate test data for ingestion by Kafka
-# We model this simulated data as representing interactive voting data
-# (e.g. via SMS with phone-ID)
+# This is a script to randomly generate test data for ingestion by Kafka.
+# We model this simulated data as representing interactive ad-view data
 
 import random
 import sys
@@ -23,37 +22,43 @@ class Producer(object):
     def produce_msgs(self, source_symbol):
         '''
         Basic Schema for Messages:
-        show_id: int
-        candidate_id: int  (candidate to receive vote)
+        asset_id: int  # e.g. ad viewed
         user_id: int
-        device_id: int
+        age_id: string
+        user_seg: string 
         timestamp: string
-        user_segs: list of strings
         '''
+ 
+        # configurable parameters for testing
+        kafka_topic = "ad_views"
+        N_test = 100000  # number of simulated data items
+        N_items_per_user = 5  # total users = N_test / N_items_per_user
+        N_group1 = 2  # e.g. age: Male / Female
+        N_group2 = 5  # e.g. 5 age segments
 
-        N_test = 1000  # number of simulated data items
+        # group codes
+        group1 = ["M", "F"]
+        assert len(group1) == N_group1
+        group2 = ["12-17", "18-34", "35-49", "50-64", "65+"]
+        assert len(group2) == N_group2
+
+        # generate synthetic data - loop 
         for i in xrange(N_test):
-            show_id = 1  # fixed for testing
-            candidate_id = 1  # fixed for testing
-
-            u = 5  # number of distinct users for control
-            user_id = i / 5
-            device_id = 1  # fixed for testing
-
+            asset_id = 1  # fixed for testing
+            user_id = i / N_items_per_user
+            age_id = group2[user_id % N_group2]
+            user_seg = group1[user_id % N_group1] 
             timestamp = datetime.now().strftime("%Y%m%d %H%M%S")
-            segs = ["a.M", "a.F"]
-            user_segs = segs[user_id % 2]  # random.choice(segs)
 
-            str_fmt = "{};{};{};{};{};{}"
-            message_info = str_fmt.format(show_id,
-                                          candidate_id,
+            str_fmt = "{};{};{};{};{}"
+            message_info = str_fmt.format(asset_id,
                                           user_id,
-                                          device_id,
-                                          timestamp,
-                                          user_segs)
+                                          age_id,
+                                          user_seg,
+                                          timestamp)
 
             print message_info
-            self.producer.send_messages('vote_data',
+            self.producer.send_messages(kafka_topic,
                                         source_symbol,
                                         message_info)
 
