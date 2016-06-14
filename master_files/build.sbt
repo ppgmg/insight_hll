@@ -1,4 +1,4 @@
-name := "voting_data"
+name := "site_data"
 
 version := "1.0"
 
