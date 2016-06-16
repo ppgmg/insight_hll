@@ -3,27 +3,62 @@
 Exploring `hyperloglog` implementations to count unique elements in a data stream on a distributed system.
 
 ### Create a topic (e.g. site_views) where data will be streamed to.
+
 We choose 4 partitions to increase parallelized reads and writes.
+
 ```
 any-node:~$ /usr/local/kafka/bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic site_views --partitions 4 --replication-factor 2
 ```
-Optionally check topics
+Optionally check topics:
+
 ```
-/usr/local/kafka/bin/kafka-topics.sh --list --zookeeper localhost:2181
+any-node:~$ /usr/local/kafka/bin/kafka-topics.sh --list --zookeeper localhost:2181
 ```
 
-### Compile files in directory (if not already done)
+### Compile files in insight_hll directory
+
+After cloning repository onto master node, from the master_files directory:
+
 ```
-sbt assembly
-sbt package
+root-node:~/insight_hll/master_files$ sbt assembly
+root-node:~/insight_hll/master_files$ sbt package
 ```
 
-### Run spark script on master (.scala file compiled)
+### Run spark script on master node (.scala file compiled)
+
+To run with messages to standard output (replace 172-31-0-69 using info from private DNS for master node):
+
 ```
-spark-submit --class DataStreaming --master spark://ip-172-31-0-69:7077 --jars target/scala-2.10/site_data-assembly-1.0.jar target/scala-2.10/site_data_2.10-1.0.jar
+root-node:~/insight_hll/master_files$ spark-submit --class DataStreaming --master spark://ip-172-31-0-69:7077 --jars target/scala-2.10/site_data-assembly-1.0.jar target/scala-2.10/site_data_2.10-1.0.jar
+```
+
+OR pipe output to a file (replace 172-31-0-69 using info from private DNS address for master node):
+
+```
+root-node:~/insight_hll/master_files$ spark-submit --class DataStreaming --master spark://ip-172-31-0-69:7077 --jars target/scala-2.10/site_data-assembly-1.0.jar target/scala-2.10/site_data_2.10-1.0.jar > myoutputfile
 ```
 
 ### Submit simulated data in testfile to Kafka
+
+Create custom files by running test.py (can be done from master node or elsewhere) and piping output to a file (replace 52.201.165.163 with information from public DNS for master node, and 100000 with number of unique records to be generated):
+
 ```
-/usr/local/kafka/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic site_views < testfile
+root-node:~/insight_hll$ python test.py 52.201.165.163 1 100000 > 100k.test
 ```
+
+OR use provided test file.  
+
+Then from same machine (configured to send messages to Kafka for ingestion), transmit contents of file:
+
+```
+root-node:~/insight_hll$ /usr/local/kafka/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic site_views < 100k.test 
+```
+
+### Tracking progress
+
+With the job running, diagnostics can be viewed from a browser (replace ec2-52-201-165-163.compute-1 with information from public DNS for master node):
+
+```
+http://ec2-52-201-165-163.compute-1.amazonaws.com:4040/streaming/
+```
+
