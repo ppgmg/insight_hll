@@ -19,6 +19,7 @@ import com.twitter.algebird.Operators._
 import com.twitter.algebird.HyperLogLog._
 import org.apache.commons.io.Charsets
 
+import java.util.Calendar
 
 object DataStreaming {
 
@@ -47,39 +48,46 @@ object DataStreaming {
 
     // initialize counters to store set of counted elements
     // note this implementation assumes we can convert user ID to integer 
-    var userSet: Set[Int] = Set()
-    var malesSet: Set[Int] = Set()
-    var age2Set: Set[Int] = Set()
+    var userSet: Set[Long] = Set()
+    var malesSet: Set[Long] = Set()
+    var age2Set: Set[Long] = Set()
  
     // control what to output
-    val approxcounts = true
-    val exactcounts = true 
+    val approxcounts = true 
+    val exactcounts = false  
   
     // process each data record 
     messages.foreachRDD { rdd =>
 
-        // show read data as Data Frame to facilitate testing
+        // print start time
+        println("---Start New Batch---")
+        println(Calendar.getInstance.getTime)
+
+        val lines = rdd.map(_._2)
+
+        /* uncomment block to show read data as Data Frame to facilitate testing
         val sqlContext = SQLContextSingleton.getInstance(rdd.sparkContext)
         import sqlContext.implicits._
 
-        val lines = rdd.map(_._2)
         val ticksDF = lines.map( x => {
                                   val tokens = x.split(";")
                                   Tick(tokens(1), 1)}).toDF()
         val ticks_per_source_DF = ticksDF.groupBy("source").agg("count" -> "sum") 
-        ticks_per_source_DF.show()
+        ticks_per_source_DF.show() */
 
         // hyperloglog counting
 
         val ticks_pre = lines.map( x => {
                                  val tokens2 = x.split(";")
-                                 (tokens2(1).toInt, (tokens2(2), tokens2(3))) }
+                                 (tokens2(1).toLong, (tokens2(2), tokens2(3))) }
                                   ).persist()
 
+        println("OUT: Total records processed: %d".format(ticks_pre.count()))
+
         val ids = ticks_pre.keys
-        val males_filter = ticks_pre.filter ( x => x._2._2 == "M")
+        val males_filter = ticks_pre.filter ( x => x._2._2 == "M") // get males
         val males = males_filter.keys
-        val age2_filter = ticks_pre.filter (x => x._2._1 == "18-34")
+        val age2_filter = ticks_pre.filter (x => x._2._1 == "18-34") // get group
         val age2 = age2_filter.keys
 
         if (approxcounts){
@@ -126,9 +134,11 @@ object DataStreaming {
                 all_age2 += approxage2_hll  // update global
                 println("OUT: Approx distinct 18-34s this batch: %d".format(approxage2_hll.estimatedSize.toInt))
                 println("OUT: Approx distinct 18-34s overall: %d".format(globalHll.estimateSize(all_age2).toInt))
+                println("OUT: Approx intersection 18-34 males: %d".format(globalHll.estimateIntersectionSize(Seq(all_males, all_age2)).toInt))
             }else{
                 println("OUT: Approx distinct 18-34s this batch: 0")
                 println("OUT: Approx distinct 18-34s overall: %d".format(globalHll.estimateSize(all_age2).toInt))
+                println("OUT: Approx intersection 18-34s overall: %d".format(globalHll.estimateIntersectionSize(Seq(all_males, all_age2)).toInt))
             }
 
         }
@@ -164,13 +174,19 @@ object DataStreaming {
                 age2Set += totalage2
                 println("OUT: Exact distinct 18-34s this batch: %d".format(totalage2.size))
                 println("OUT: Exact distinct 18-34s overall: %d".format(age2Set.size))
+                println("OUT: Exact intersection 18-34 males: %d".format(age2Set.intersect(malesSet).size))
             }else{
                 println("OUT: Exact distinct 18-34s this batch: 0")
                 println("OUT: Exact distinct 18-34s overall: %d".format(age2Set.size))
+                println("OUT: Exact intersection 18-34 males: %d".format(age2Set.intersect(malesSet).size))
             }
 
         }
 
+        // print end time
+        println(Calendar.getInstance.getTime)
+        println("---End Batch---")
+        println("               ")
     }
     // Start the computation
     ssc.start()
