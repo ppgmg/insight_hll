@@ -4,6 +4,8 @@
 # This is a script to generate data that mimics database records associating
 # user IDS with segment categories. 
 
+# usage: python gensegs.py > master_files/1Msegs.csv
+
 import random
 import sys
 import json
@@ -14,7 +16,7 @@ age_id: string
 user_seg: string 
 '''
  
-N_test = 100000000  # number of simulated data items
+N_test = 1000000  # number of simulated data items
 N_group1 = 2  # e.g. age: Male / Female
 N_group2 = 5  # e.g. 5 age segments
 
