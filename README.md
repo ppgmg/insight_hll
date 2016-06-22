@@ -2,6 +2,8 @@
 
 Exploring `hyperloglog` implementations to count unique elements in a data stream on a distributed system.
 
+Requirements:  Hadoop, Spark, Zookeeper, Kafka
+
 ### Create a topic (e.g. site_views) where data will be streamed to.
 
 We choose 4 partitions to increase parallelized reads and writes.
