@@ -5,6 +5,10 @@
 // User IDs using the Hyperloglog algorithm as provided by
 // Twitter Algebird.
 
+// Revised 21 Jun 2016
+// Add optional functionality to load ID only and retrieve
+// segments of interest from a broadcast bloom filter
+
 import kafka.serializer.StringDecoder
 
 import org.apache.spark.streaming._
@@ -17,6 +21,7 @@ import org.apache.spark.sql._
 import com.twitter.algebird._
 import com.twitter.algebird.Operators._
 import com.twitter.algebird.HyperLogLog._
+import com.twitter.algebird.BloomFilter._
 import org.apache.commons.io.Charsets
 
 import java.util.Calendar
@@ -30,10 +35,19 @@ object DataStreaming {
     val topics = "site_views"
     val topicsSet = topics.split(",").toSet
 
-    // configure batch intervals and create context
-    val interval = 1  // seconds
     val buildname = "site_data"  // name of build file
     val sparkConf = new SparkConf().setAppName(buildname)
+ 
+    /* OPTIONAL: load bloom filters
+    // UNCOMMENT to read and broadcast bloom filters for segments of interest
+    // requires seg_data.scala to be run on Spark to create if not yet existing
+    val sc = new SparkContext(sparkConf)
+    reloadmales = sc.objectFile[com.twitter.algebird.BF]("hdfs://ec2-52-201-165-163.compute-1.amazonaws.com:9000/bloom/malebf").cache().first()
+    reloadage2 = sc.objectFile[com.twitter.algebird.BF]("hdfs://ec2-52-201-165-163.compute-1.amazonaws.com:9000/bloom/age2bf").cache().first()
+    sc.stop() */
+
+    // configure batch intervals and create context
+    val interval = 1  // seconds
     val ssc = new StreamingContext(sparkConf, Seconds(interval))
 
     // create direct kafka stream with brokers and topics
@@ -55,7 +69,7 @@ object DataStreaming {
     // control what to output
     val approxcounts = true 
     val exactcounts = false  
-  
+
     // process each data record 
     messages.foreachRDD { rdd =>
 
@@ -75,21 +89,38 @@ object DataStreaming {
         val ticks_per_source_DF = ticksDF.groupBy("source").agg("count" -> "sum") 
         ticks_per_source_DF.show() */
 
-        // hyperloglog counting
 
+        // hyperloglog counting
+        // comment this block if using bloom filters
         val ticks_pre = lines.map( x => {
                                  val tokens2 = x.split(";")
                                  (tokens2(1).toLong, (tokens2(2), tokens2(3))) }
                                   ).persist()
 
-        println("OUT: Total records processed: %d".format(ticks_pre.count()))
-
         val ids = ticks_pre.keys
         val males_filter = ticks_pre.filter ( x => x._2._2 == "M") // get males
         val males = males_filter.keys
         val age2_filter = ticks_pre.filter (x => x._2._1 == "18-34") // get group
-        val age2 = age2_filter.keys
+        val age2 = age2_filter.keys // end block 
 
+        /*  UNCOMMENT if using bloom filters
+        // hyperloglog counting with bloom filters
+        val ticks_pre = lines.map( x => {
+                              val tokens = x.split(";")
+                              val a = reloadage2.contains(tokens(1).toString).isTrue
+                              val m = reloadmales.contains(tokens(1).toString).isTrue
+                              (tokens(1).toLong, (a, m)) }).persist()
+
+        val ids = ticks_pre.keys
+        val males_filter = ticks_pre.filter ( x => x._2._2 == true)
+        val males = males_filter.keys
+        val age2_filter = ticks_pre.filter ( x => x._2._1 == true) 
+        val age2 = age2_filter.keys  // end block  */
+
+        // start hyperloglog processing 
+
+        println("OUT: Total records processed: %d".format(ticks_pre.count()))
+ 
         if (approxcounts){
             //  1. count ids
             val approxids_pre = ids.mapPartitions(ids => {
