@@ -3,7 +3,10 @@
 Exploring `hyperloglog` implementations to count unique elements in a data stream on a distributed system.
 
 Info on SlideShare:  [k-lo.ca](http://k-lo.ca)
+
 Video with narration:  [YouTube](https://youtu.be/ZRCLZ3aIaVU)
+
+---
 
 Requirements:  Hadoop, Spark, Zookeeper, Kafka
 
