@@ -8,6 +8,20 @@ Video with narration:  [YouTube](https://youtu.be/ZRCLZ3aIaVU)
 
 ---
 
+## About Hyperloglog
+
+HyperLogLog is an algorithm used to count the number of unique elements in a data set. Typical counting structures provide exact counts at varying degrees of efficiency, but all generally require memory in proportion to the number of unique elements to be counted. These memory requirements can become onerous as data sets get very large. 
+
+In contrast, probabilistic structures use a (typically much smaller) fixed amount of memory (tunable depending on the desired error rate), at the cost of obtaining a count that is approximate.  For example, counts of billions or trillions of unique items can be tracked using a Hyperloglog structure that requires only several KB of memory, with a typical error rate of 2%. 
+
+By hashing elements to be counted, uniformly distributed random numbers with varying lengths of leading zeros in their binary representations can be generated. In general, the maximum length of leading zeros in these binary representations can be used to estimate the count of unique items. To minimize variance, however, rather than computing a single such maximum length for the entire data set, data is first split into numerous subsets; the maximum length of leading zeros for each subset can be computed, and the resultant values are combined using a harmonic mean to obtain a final value that is converted to an overall estimate.
+
+[For further details: Wikipedia](https://en.wikipedia.org/wiki/HyperLogLog)
+
+---
+
+## Example implementation
+
 Requirements:  Hadoop, Spark, Zookeeper, Kafka
 
 ### Create a topic (e.g. site_views) where data will be streamed to.
